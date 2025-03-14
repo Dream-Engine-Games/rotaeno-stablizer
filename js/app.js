@@ -67,6 +67,7 @@ window.onload = async function() {
             credit1: '<span style="font-weight: bold; color: yellow">Streaming Mode</span> and <span style="font-weight: bold; color: yellow">Stream Encoding V2</span> must be enabled in game settings.',
             credit2: 'All processing is done locally, no data will be uploaded.',
             credit3: 'Powered by <a href="https://github.com/Yahweasel/libav.js">libav</a>.<a href="https://github.com/Yahweasel/libavjs-webcodecs-bridge">js</a>',
+            credit4: 'Based on <a href="https://github.com/linnaea/rotaeno-stablizer">linnaea/rotaeno-stablizer</a> for web',
         }
     };
 
@@ -85,6 +86,37 @@ window.onload = async function() {
             break;
         }
     }
+
+    // Add event listener for language change
+    document.getElementById('languageChange').addEventListener('change', function() {
+        const lang = document.documentElement.lang;
+        translation = translations[lang] || translations[lang.split('-')[0]] || translations.en;
+        
+        // Update all text elements with the new translation
+        for (const key in translation) {
+            let element = document.getElementById(key);
+            element = (element?.labels?.[0] ?? element);
+            if (element) {
+                element.innerHTML = translation[key];
+            }
+        }
+        
+        // Update step indicator if it's already initialized
+        if (typeof window.updateStepIndicator === 'function') {
+            const steps = ['FILE', 'CROP', 'CODE_BLOCK', 'ORIENTATION', 'RING', 'TRIM', 'CODEC', 'OUTPUT'];
+            const stepDivs = document.querySelectorAll('div[data-step]');
+            
+            for (let i = 0; i < stepDivs.length; i++) {
+                if (stepDivs[i].style.display === 'block') {
+                    const stepIndex = steps.indexOf(stepDivs[i].dataset.step);
+                    if (stepIndex !== -1) {
+                        window.updateStepIndicator(stepIndex);
+                    }
+                    break;
+                }
+            }
+        }
+    });
 
     const featureCheck = {
         secureContext: () => isSecureContext,

@@ -37,12 +37,182 @@
     <script src="js/libav-6.5.7.1-webcodecs.js"></script>
     <script src="js/libavjs-webcodecs-bridge.js"></script>
     
-    <!-- Main application script (moved to external file) -->
+    <!-- Main application script -->
     <script src="js/app.js" defer></script>
+    
+    <!-- Language switching functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Language switcher logic
+            const languageSwitchers = document.querySelectorAll('[name="language-switcher"]');
+            languageSwitchers.forEach(switcher => {
+                switcher.addEventListener('change', function() {
+                    document.documentElement.lang = this.value;
+                    
+                    // Save preference
+                    try {
+                        localStorage.setItem('preferredLanguage', this.value);
+                    } catch(e) {
+                        console.log('Could not save language preference');
+                    }
+                    
+                    // Force reload of translations in app.js
+                    const event = new Event("change");
+                    document.getElementById('languageChange').dispatchEvent(event);
+                });
+            });
+            
+            // Try to load saved preference
+            try {
+                const savedLang = localStorage.getItem('preferredLanguage');
+                if (savedLang) {
+                    document.querySelector(`[name="language-switcher"][value="${savedLang}"]`).checked = true;
+                    document.documentElement.lang = savedLang;
+                    
+                    // Trigger language change event after app.js is loaded
+                    setTimeout(function() {
+                        const event = new Event("change");
+                        document.getElementById('languageChange').dispatchEvent(event);
+                    }, 100);
+                }
+            } catch(e) {
+                console.log('Could not load language preference');
+            }
+            
+            // Step indicator update
+            window.updateStepIndicator = function(currentStep) {
+                const stepNames = {
+                    'en': ['Select File', 'Crop', 'Block Size', 'Orientation', 'Ring', 'Export'],
+                    'zh-CN': ['选择文件', '裁剪', '方块大小', '朝向', '环形', '导出']
+                };
+                
+                const lang = document.documentElement.lang === 'zh-CN' ? 'zh-CN' : 'en';
+                const steps = stepNames[lang];
+                const totalSteps = steps.length;
+                
+                // Skip 5 (TRIM) and go directly to 6 (CODEC/OUTPUT) in the indicator
+                let displayStep = currentStep;
+                if (currentStep >= 5) displayStep = 5;
+                
+                if (displayStep >= 0 && displayStep < totalSteps) {
+                    const indicator = document.getElementById('stepIndicator');
+                    
+                    // Clear previous indicators
+                    indicator.innerHTML = '';
+                    
+                    for (let i = 0; i < totalSteps; i++) {
+                        const stepElement = document.createElement('div');
+                        stepElement.className = 'flex flex-col items-center';
+                        
+                        const circle = document.createElement('div');
+                        circle.className = i < displayStep ? 
+                            'w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center mb-1' :
+                            (i === displayStep ? 
+                                'w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center mb-1 ring-4 ring-primary/30' :
+                                'w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center mb-1');
+                        circle.textContent = (i + 1).toString();
+                        
+                        const label = document.createElement('span');
+                        label.className = 'text-xs';
+                        label.textContent = steps[i];
+                        
+                        stepElement.appendChild(circle);
+                        stepElement.appendChild(label);
+                        indicator.appendChild(stepElement);
+                        
+                        // Add connecting line except for the last item
+                        if (i < totalSteps - 1) {
+                            const line = document.createElement('div');
+                            line.className = i < displayStep ? 
+                                'flex-grow h-0.5 bg-primary mx-1' : 
+                                'flex-grow h-0.5 bg-gray-200 dark:bg-gray-700 mx-1';
+                            indicator.appendChild(line);
+                        }
+                    }
+                }
+            };
+            
+            // Hook into step changes
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const steps = ['FILE', 'CROP', 'CODE_BLOCK', 'ORIENTATION', 'RING', 'TRIM', 'CODEC', 'OUTPUT'];
+                        const stepDivs = document.querySelectorAll('div[data-step]');
+                        
+                        for (let i = 0; i < stepDivs.length; i++) {
+                            if (stepDivs[i].style.display === 'block') {
+                                const stepIndex = steps.indexOf(stepDivs[i].dataset.step);
+                                if (stepIndex !== -1) {
+                                    window.updateStepIndicator(stepIndex);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                });
+            });
+            
+            document.querySelectorAll('div[data-step]').forEach(function(el) {
+                observer.observe(el, { attributes: true });
+            });
+            
+            // Toggle advanced settings
+            document.getElementById('advancedSettingsToggle').addEventListener('click', function() {
+                const content = document.getElementById('advancedSettings');
+                const icon = this.querySelector('svg');
+                
+                if (content.classList.contains('hidden')) {
+                    content.classList.remove('hidden');
+                    icon.style.transform = 'rotate(180deg)';
+                } else {
+                    content.classList.add('hidden');
+                    icon.style.transform = 'rotate(0deg)';
+                }
+            });
+            
+            // Toggle export settings
+            document.getElementById('exportSettingsToggle').addEventListener('click', function() {
+                const content = document.getElementById('exportSettings');
+                const icon = this.querySelector('svg');
+                
+                if (content.classList.contains('hidden')) {
+                    content.classList.remove('hidden');
+                    icon.style.transform = 'rotate(180deg)';
+                } else {
+                    content.classList.add('hidden');
+                    icon.style.transform = 'rotate(0deg)';
+                }
+            });
+            
+            // Initially set the step indicator
+            window.updateStepIndicator(0);
+        });
+    </script>
 </head>
 <body class="min-h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
-    <div class="container mx-auto px-4 py-8 max-w-3xl">
-        <h1 class="text-2xl md:text-3xl font-bold text-center mb-6">Rotaeno 录屏旋转稳定工具</h1>
+    <div class="container mx-auto px-4 py-6 max-w-3xl">
+        <h1 class="text-2xl md:text-3xl font-bold text-center mb-4">Rotaeno 录屏旋转稳定工具</h1>
+        
+        <!-- Language Switcher -->
+        <div class="flex justify-center mb-6">
+            <div class="inline-flex rounded-md shadow-sm" role="group">
+                <input type="radio" id="lang-zh" name="language-switcher" value="zh-CN" class="hidden peer/zh" checked>
+                <label for="lang-zh" class="px-4 py-2 text-sm font-medium bg-white border border-gray-200 rounded-l-lg hover:bg-gray-100 hover:text-primary focus:z-10 focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:text-white dark:hover:bg-gray-600 peer-checked/zh:bg-primary peer-checked/zh:text-white cursor-pointer">
+                    中文
+                </label>
+                
+                <input type="radio" id="lang-en" name="language-switcher" value="en" class="hidden peer/en">
+                <label for="lang-en" class="px-4 py-2 text-sm font-medium bg-white border border-gray-200 rounded-r-lg hover:bg-gray-100 hover:text-primary focus:z-10 focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:text-white dark:hover:bg-gray-600 peer-checked/en:bg-primary peer-checked/en:text-white cursor-pointer">
+                    English
+                </label>
+            </div>
+            <span id="languageChange" class="hidden"></span>
+        </div>
+        
+        <!-- Step Indicator -->
+        <div id="stepIndicator" class="flex items-center justify-between mb-6 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <!-- Will be populated by JavaScript -->
+        </div>
         
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
             <!-- Canvas Preview -->
@@ -107,21 +277,35 @@
             <div class="realtime-update py-2" data-step="CODE_BLOCK" style="display: none">
                 <p id="blockSizeInstruction" class="mb-3">调整大小使色块被红绿线包住，建议定位到有白色或黄色色块的时间操作</p>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="mb-4">
                     <div class="flex items-center">
                         <label for="blockSize" class="w-16 text-sm font-medium">大小</label>
                         <input type="number" id="blockSize" min="1" max="32" step="1" value="8" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
                         <span class="ml-1">px</span>
                     </div>
+                </div>
+                
+                <!-- Advanced Settings Toggle -->
+                <div class="mb-4">
+                    <button id="advancedSettingsToggle" class="flex items-center w-full px-4 py-2 text-left text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                        <span>Advanced Settings</span>
+                        <svg class="w-5 h-5 ml-auto transition-transform duration-200" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                        </svg>
+                    </button>
                     
-                    <div class="flex items-center">
-                        <label for="sensitivity" class="w-16 text-sm font-medium">灵敏度</label>
-                        <input type="number" id="sensitivity" min="0" max="127" step="1" value="20" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
-                    </div>
-                    
-                    <div class="flex items-center">
-                        <label for="threshold" class="w-16 text-sm font-medium">阈值</label>
-                        <input type="number" id="threshold" min="0" max="127" step="1" value="64" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                    <div id="advancedSettings" class="mt-2 p-4 bg-gray-50 rounded-lg dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hidden">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="flex items-center">
+                                <label for="sensitivity" class="w-20 text-sm font-medium">灵敏度</label>
+                                <input type="number" id="sensitivity" min="0" max="127" step="1" value="20" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                            </div>
+                            
+                            <div class="flex items-center">
+                                <label for="threshold" class="w-20 text-sm font-medium">阈值</label>
+                                <input type="number" id="threshold" min="0" max="127" step="1" value="64" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -133,8 +317,8 @@
                     <select id="orientation" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary">
                         <option value="3,2,1,0,2048" id="o180">180°</option>
                         <option value="1,3,0,2,3072" id="oLeft">朝左</option>
-                        <option value="2,0,3,1,1024" id="oRight">朝右</option>
-                        <option value="0,1,2,3,0" id="oUpright" selected>正向</option>
+                        <option value="2,0,3,1,1024" id="oRight" selected>朝右</option>
+                        <option value="0,1,2,3,0" id="oUpright">正向</option>
                     </select>
                 </div>
             </div>
@@ -158,14 +342,14 @@
                 </div>
             </div>
             
-            <!-- TRIM Step -->
+            <!-- TRIM Step (Hidden but kept for app.js compatibility) -->
             <div data-step="TRIM" class="py-2" style="display: none">
                 <p id="videoTrimInstruction" class="mb-3">视频裁剪</p>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="flex items-center">
                         <label for="trimStart" class="w-16 text-sm font-medium">开头</label>
-                        <input type="number" id="trimStart" min="0" max="6" step="0.1" value="2" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                        <input type="number" id="trimStart" min="0" max="6" step="0.1" value="0" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
                         <span class="ml-1">s</span>
                     </div>
                     
@@ -177,35 +361,78 @@
                 </div>
             </div>
             
-            <!-- CODEC Step -->
+            <!-- CODEC Step (Modified to include export settings) -->
             <div data-step="CODEC" class="py-2" style="display: none">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div class="flex items-center">
-                        <label for="outputDim" class="w-20 text-sm font-medium">分辨率</label>
-                        <input type="number" id="outputDim" min="160" max="5968" step="16" value="1088" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
-                    </div>
+                <!-- Big Export Button -->
+                <button id="btnNextStep" class="w-full py-3 mb-6 bg-primary text-white rounded-lg text-lg font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 dark:bg-primary/80 dark:hover:bg-primary/70 transition-colors">
+                    Begin Export
+                </button>
+                
+                <!-- Export Settings Toggle -->
+                <div class="mb-4">
+                    <button id="exportSettingsToggle" class="flex items-center w-full px-4 py-2 text-left text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                        <span>Export Settings</span>
+                        <svg class="w-5 h-5 ml-auto transition-transform duration-200" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                        </svg>
+                    </button>
                     
-                    <div class="flex items-center">
-                        <label for="outputBitrate" class="w-20 text-sm font-medium">码率</label>
-                        <input type="number" id="outputBitrate" min="1" max="50" step="0.1" value="10" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
-                        <span class="ml-1">Mbps</span>
+                    <div id="exportSettings" class="mt-2 p-4 bg-gray-50 rounded-lg dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hidden">
+                        <!-- Trim Settings -->
+                        <div class="mb-4">
+                            <h4 class="font-medium mb-2">Video Trimming</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="flex items-center">
+                                    <label for="trimStart2" class="w-16 text-sm font-medium">开头</label>
+                                    <input type="number" id="trimStart2" min="0" max="6" step="0.1" value="0" 
+                                           oninput="document.getElementById('trimStart').value = this.value" 
+                                           class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                                    <span class="ml-1">s</span>
+                                </div>
+                                
+                                <div class="flex items-center">
+                                    <label for="trimEnd2" class="w-16 text-sm font-medium">结尾</label>
+                                    <input type="number" id="trimEnd2" min="0" max="6" step="0.1" value="2" 
+                                           oninput="document.getElementById('trimEnd').value = this.value"
+                                           class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                                    <span class="ml-1">s</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Video Settings -->
+                        <div>
+                            <h4 class="font-medium mb-2">Video Settings</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                <div class="flex items-center">
+                                    <label for="outputDim" class="w-20 text-sm font-medium">分辨率</label>
+                                    <input type="number" id="outputDim" min="160" max="5968" step="16" value="1088" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                                </div>
+                                
+                                <div class="flex items-center">
+                                    <label for="outputBitrate" class="w-20 text-sm font-medium">码率</label>
+                                    <input type="number" id="outputBitrate" min="1" max="50" step="0.1" value="10" class="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                                    <span class="ml-1">Mbps</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="outputCodec" class="block mb-1 text-sm font-medium">编码</label>
+                                <select id="outputCodec" class="w-full px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary"></select>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="keyInterval" class="block mb-1 text-sm font-medium">关键帧间隔</label>
+                                <div class="flex items-center">
+                                    <input type="number" id="keyInterval" min="-1" max="10" step="1" value="10" class="w-24 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
+                                    <span class="ml-1">s</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="mb-4">
-                    <label for="outputCodec" class="block mb-1 text-sm font-medium">编码</label>
-                    <select id="outputCodec" class="w-full px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary"></select>
-                </div>
-                
-                <div class="mb-4">
-                    <label for="keyInterval" class="block mb-1 text-sm font-medium">关键帧间隔</label>
-                    <div class="flex items-center">
-                        <input type="number" id="keyInterval" min="-1" max="10" step="1" value="10" class="w-24 px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary" />
-                        <span class="ml-1">s</span>
-                    </div>
-                </div>
-                
-                <p id="encodeReadyMsg" class="mt-4 font-medium text-primary dark:text-primary-light">点击下一步开始编码</p>
+                <p id="encodeReadyMsg" class="mt-4 font-medium text-primary dark:text-primary-light">点击"Begin Export"开始编码</p>
             </div>
             
             <!-- OUTPUT Step -->
@@ -216,9 +443,9 @@
                 </div>
             </div>
             
-            <!-- Step Navigation -->
+            <!-- Step Navigation (hidden but kept for compatibility) -->
             <div id="stepControl" class="mt-6 text-center" style="display: none">
-                <button type="button" id="btnNextStep" class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 dark:bg-primary/80 dark:hover:bg-primary/70 transition-colors">下一步</button>
+                <button type="button" id="btnNextStep2" class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 dark:bg-primary/80 dark:hover:bg-primary/70 transition-colors">下一步</button>
             </div>
         </div>
         
@@ -226,9 +453,40 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 text-sm space-y-2">
             <div id="credit1" class="text-gray-700 dark:text-gray-300">本工具依赖Rotaeno在 <span class="font-bold text-yellow-500">直播模式</span> 下在画面四角显示的方块。需要勾选 <span class="font-bold text-yellow-500">使用V2直播编码</span> 方可正常使用。</div>
             <div id="credit2" class="text-gray-700 dark:text-gray-300">此工具处理均在设备本地进行，不会上传任何数据。</div>
-            <div id="credit3" class="text-gray-700 dark:text-gray-300">基于<a href="https://github.com/linnaea/rotaeno-stablizer" class="text-primary hover:underline">linnaea</a>的代码完成，本版本调整了一部分UX设计</div>
             <div id="credit3" class="text-gray-700 dark:text-gray-300">使用<a href="https://github.com/Yahweasel/libav.js" class="text-primary hover:underline">libav</a>.<a href="https://github.com/Yahweasel/libavjs-webcodecs-bridge" class="text-primary hover:underline">js</a>打造</div>
+            <div id="credit4"class="text-gray-700 dark:text-gray-300">基于 <a href="https://github.com/linnaea/rotaeno-stablizer" class="text-primary hover:underline">linnaea/rotaeno-stablizer</a> 开发的网页版工具</div>
         </div>
     </div>
+    
+    <!-- Sync buttons for compatibility with app.js -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Sync the trimStart/trimEnd fields
+            const syncTrimValues = () => {
+                document.getElementById('trimStart2').value = document.getElementById('trimStart').value;
+                document.getElementById('trimEnd2').value = document.getElementById('trimEnd').value;
+            };
+            
+            // Make the "Begin Export" button work with the original "Next" button
+            document.getElementById('btnNextStep').addEventListener('click', function() {
+                document.getElementById('btnNextStep2').click();
+            });
+            
+            // Hook into trimStart/End changes
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+                        syncTrimValues();
+                    }
+                });
+            });
+            
+            observer.observe(document.getElementById('trimStart'), { attributes: true });
+            observer.observe(document.getElementById('trimEnd'), { attributes: true });
+            
+            // Initial sync
+            setTimeout(syncTrimValues, 1000);
+        });
+    </script>
 </body>
 </html>
