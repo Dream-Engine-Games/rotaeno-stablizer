@@ -64,9 +64,10 @@ window.onload = async function() {
             keyInterval: 'Keyframe Interval',
             encodingMsg: 'Encoding in progress. Please keep this page open if using a mobile device. Once done, click the link to ',
             download: 'Download',
-            credit1: '<span style="font-weight: bold; color: yellow">Streaming Mode</span> and <span style="font-weight: bold; color: yellow">Stream Encoding V2</span> must be enabled in game settings.',
-            credit2: 'All processing is done locally, no data will be uploaded.',
+            credit1: '<span style="font-weight: bold; color: yellow">Streaming Mode</span> must be enabled in game settings for this tool to work.',
+            credit2: 'For v2.8 and later, just enable Streaming Mode. For v2.8 and earlier, you will need to enable Stream Encoding V2 as well.',
             credit3: 'Powered by <a href="https://github.com/Yahweasel/libav.js">libav</a>.<a href="https://github.com/Yahweasel/libavjs-webcodecs-bridge">js</a>',
+            credit4: 'Developed by <a href="https://github.com/linnaea/rotaeno-stablizer">linnaea</a>\'s. This version only adjusted some UI slightly.',
         }
     };
 
